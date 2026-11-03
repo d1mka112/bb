@@ -66,11 +66,7 @@ import { trackLandingEvent } from "./analytics";
 import { CommandButton } from "./command-button";
 import { DownloadLink, GitHubLink } from "./cta";
 import { useDesktopPlatform } from "./desktop-platform";
-import {
-  DesktopInstallChoice,
-  PLATFORMS_NOTE,
-  type TouchAction,
-} from "./install-choice";
+import { DesktopInstallChoice, type TouchAction } from "./install-choice";
 import {
   ClaudeIcon,
   CopilotIcon,
@@ -137,10 +133,10 @@ export function InstallOptions({
             )
           }
           touchNote={
-            simple ? (
-              simpleLinks
-            ) : touchAction === "email" ? (
+            touchAction === "email" ? (
               <PhoneEmailNote />
+            ) : simple ? (
+              simpleLinks
             ) : undefined
           }
         />
@@ -186,7 +182,7 @@ export function InstallOptions({
 }
 
 function PhoneEmailNote() {
-  return <>{PLATFORMS_NOTE}</>;
+  return <>We&rsquo;ll email a link to open on your computer · macOS, Windows, Linux</>;
 }
 
 function OpenSourceLink({ placement }: { placement: CtaPlacement }) {
