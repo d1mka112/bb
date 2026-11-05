@@ -8,7 +8,7 @@ import {
   emptyResolvedItemPruningProbe,
 } from "./resolved-item-pruning.js";
 import { pruneRateLimitSnapshotWindow } from "./rate-limit-pruning.js";
-import { and, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import type { DbConnection } from "../connection.js";
 import {
   events,
@@ -391,28 +391,15 @@ function advanceThreadPruningTransaction(
         }
       }
       cursor.updatedAt = now;
-      const archivedScope =
-        threadScope !== undefined &&
-        tx
-          .select({ id: threads.id })
-          .from(threads)
-          .where(and(eq(threads.id, threadScope), isNotNull(threads.archivedAt)))
-          .get() !== undefined;
-      if (archivedScope) {
-        tx.delete(threadPruningCursors)
-          .where(eq(threadPruningCursors.scope, scope))
-          .run();
-      } else {
-        tx.update(threadPruningCursors)
-          .set(cursor)
-          .where(
-            and(
-              eq(threadPruningCursors.policy, policy),
-              eq(threadPruningCursors.scope, scope),
-            ),
-          )
-          .run();
-      }
+      tx.update(threadPruningCursors)
+        .set(cursor)
+        .where(
+          and(
+            eq(threadPruningCursors.policy, policy),
+            eq(threadPruningCursors.scope, scope),
+          ),
+        )
+        .run();
       return {
         policy,
         action,
@@ -450,4 +437,13 @@ export function advanceThreadPruning(
   } finally {
     db.$client.pragma(`busy_timeout = ${timeout}`);
   }
+}
+
+export function deleteThreadScopedPruningCursors(
+  db: DbConnection,
+  threadId: string,
+): void {
+  db.delete(threadPruningCursors)
+    .where(eq(threadPruningCursors.scope, threadId))
+    .run();
 }

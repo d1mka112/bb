@@ -551,6 +551,7 @@ export {
 export * from "./machines.js";
 export {
   advanceThreadPruning,
+  deleteThreadScopedPruningCursors,
   getNextThreadPruningPolicy,
   THREAD_PRUNING_POLICIES,
 } from "./thread-pruning.js";

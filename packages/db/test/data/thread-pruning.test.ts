@@ -242,28 +242,6 @@ describe("thread pruning", () => {
     }
   });
 
-  it("drops an archived thread's scoped cursors while still pruning its live step", () => {
-    const f = setup();
-    try {
-      seed(f, 1, { type: "turn/completed" });
-      advanceThreadPruning(f.db, { threadId: f.thread.id });
-      expect(
-        f.db.select().from(threadPruningCursors).all().map((row) => row.scope),
-      ).toEqual([f.thread.id]);
-      for (let i = 2; i <= 4; i++) seed(f, i);
-      seed(f, 5, { type: "turn/completed" });
-
-      archiveThread(f.db, noopNotifier, f.thread.id);
-      for (let i = 0; i < 2; i++)
-        advanceThreadPruning(f.db, { threadId: f.thread.id });
-
-      expect(sequences(f)).toEqual([1, 5]);
-      expect(f.db.select().from(threadPruningCursors).all()).toEqual([]);
-    } finally {
-      f.db.$client.close();
-    }
-  });
-
   it("reaches resolved deltas beyond unrelated history in one scoped advance", () => {
     const f = setup();
     try {

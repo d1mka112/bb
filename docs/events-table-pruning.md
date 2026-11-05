@@ -34,7 +34,6 @@ thread, so cleanup can fall behind under continuous activity and a single
 idle or archive transition does not guarantee completion. The background sweep
 runs every ten seconds while database maintenance is idle and never waits on a
 competing writer. Committed deletions invalidate cached timelines and publish a
-history-compacted notification to viewers of the thread. Live progress is kept
-per thread only while the thread is unarchived; a live step on an archived
-thread still prunes, then drops that thread's progress, and the background
-sweep finishes the rest.
+history-compacted notification to viewers of the thread. Archiving a thread runs
+one live step and then drops the thread's live progress; the background sweep
+finishes archived threads.
