@@ -342,6 +342,10 @@ export class NotificationHub implements DbNotifier {
     });
   }
 
+  hasClients(): boolean {
+    return this.clientKeysBySocket.size > 0;
+  }
+
   registerClient(socket: HubSocket): void {
     if (!this.clientKeysBySocket.has(socket)) {
       this.clientKeysBySocket.set(socket, new Map());
