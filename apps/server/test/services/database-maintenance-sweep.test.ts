@@ -21,7 +21,10 @@ import {
 } from "@bb/db";
 import { createMigratedConnection } from "@bb/db/testing";
 import type { ServerLogger } from "../../src/types.js";
-import { runDatabaseMaintenanceSweep } from "../../src/services/system/periodic-sweeps.js";
+import {
+  runDatabaseMaintenanceSweep,
+  runPluginDatabaseMaintenanceSweep,
+} from "../../src/services/system/periodic-sweeps.js";
 import { testLogger } from "../helpers/test-app.js";
 
 const FREELIST_ROW_COUNT = 1_200;
@@ -292,6 +295,51 @@ describe("runDatabaseMaintenanceSweep", () => {
         }
         writerDb.close();
         db.$client.close();
+      }
+    } finally {
+      tempDatabase.cleanup();
+    }
+  });
+
+  it("returns free pages of incremental plugin databases and never converts auto_vacuum=NONE ones", async () => {
+    const tempDatabase = createTempDatabasePath();
+    try {
+      const open = (name: string, incremental: boolean) => {
+        const database = new Database(join(tempDatabase.dbPath, "..", name));
+        if (incremental) database.pragma("auto_vacuum = INCREMENTAL");
+        database.pragma("journal_mode = WAL");
+        database.exec("CREATE TABLE blobs (value BLOB NOT NULL)");
+        const insert = database.prepare("INSERT INTO blobs VALUES (?)");
+        database.transaction(() => {
+          for (let i = 0; i < 2_000; i++) insert.run(Buffer.alloc(4_096));
+        })();
+        database.exec("DELETE FROM blobs");
+        return database;
+      };
+      const incremental = open("incremental.db", true);
+      const none = open("none.db", false);
+      try {
+        const noneFreelist = getDatabaseFreelistStats(none).freelistCount;
+        expect(
+          getDatabaseFreelistStats(incremental).freelistCount,
+        ).toBeGreaterThan(1_024);
+
+        await runPluginDatabaseMaintenanceSweep({
+          logger: testLogger,
+          plugins: {
+            listOpenPluginDatabases: () => [
+              { database: incremental, pluginId: "incremental" },
+              { database: none, pluginId: "none" },
+            ],
+          },
+        });
+
+        expect(getDatabaseFreelistStats(incremental).freelistCount).toBe(0);
+        expect(getDatabaseAutoVacuumMode(none)).toBe("none");
+        expect(getDatabaseFreelistStats(none).freelistCount).toBe(noneFreelist);
+      } finally {
+        incremental.close();
+        none.close();
       }
     } finally {
       tempDatabase.cleanup();

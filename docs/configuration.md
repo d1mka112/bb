@@ -1076,8 +1076,8 @@ inside the bb server process.
 Plugin state lives under the data dir:
 
 ```
-<dataDir>/plugins/<id>/data.db     Per-plugin SQLite database (new files use
-                                   incremental auto-vacuum; bb returns their
+<dataDir>/plugins/<id>/data.db     Per-plugin SQLite database (when it uses
+                                   incremental auto-vacuum, bb returns its
                                    free pages to disk hourly)
 <dataDir>/plugins/snapshots/<id>/  Rollback copy of a plugin's state taken
                                    before an update; deleted once the update

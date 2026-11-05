@@ -1,4 +1,3 @@
-import Database from "better-sqlite3";
 import { createPluginUpdateJobs } from "../../../src/services/plugins/plugin-update-jobs.js";
 import {
   mkdtemp,
@@ -31,7 +30,6 @@ import {
 } from "../../../src/services/plugins/plugin-service.js";
 import { PluginSettingsValidationError } from "../../../src/services/plugins/plugin-settings.js";
 import { testLogger } from "../../helpers/test-app.js";
-import { runPluginDatabaseMaintenanceSweep } from "../../../src/services/system/periodic-sweeps.js";
 import { createNoopTelemetryService } from "../../../src/services/system/telemetry.js";
 
 const logger = testLogger as unknown as Logger;
@@ -550,57 +548,6 @@ describe("plugin settings + storage", () => {
         .db.prepare("SELECT COUNT(*) AS count FROM items")
         .get();
       expect(rerunRow.count).toBe(1);
-    });
-
-    it("creates new databases with incremental auto-vacuum and returns their free pages without converting older files", async () => {
-      const legacyDir = join(dataDir, "plugins", "vacuum-legacy");
-      await mkdir(legacyDir, { recursive: true });
-      const legacy = new Database(join(legacyDir, "data.db"));
-      legacy.pragma("journal_mode = WAL");
-      legacy.exec("CREATE TABLE blobs (value BLOB NOT NULL)");
-      legacy.close();
-      for (const name of ["vacuum-new", "vacuum-legacy"]) {
-        await service.installPath(
-          await writePlugin(workDir, {
-            name: `bb-plugin-${name}`,
-            serverSource: `
-              export default function plugin(bb: any) {
-                bb.storage.migrate(bb.storage.database(), [
-                  "CREATE TABLE IF NOT EXISTS blobs (value BLOB NOT NULL)",
-                ]);
-              }
-            `,
-          }),
-        );
-      }
-      const databases = ["vacuum-new", "vacuum-legacy"].map((id) => {
-        const database = service.getApi(id)?.storage.database();
-        if (!database) throw new Error(`${id} did not load`);
-        const insert = database.prepare("INSERT INTO blobs VALUES (?)");
-        database.transaction(() => {
-          for (let i = 0; i < 2_000; i++) insert.run(Buffer.alloc(4_096));
-        })();
-        database.exec("DELETE FROM blobs");
-        return database;
-      });
-      const [fresh, older] = databases as [
-        Database.Database,
-        Database.Database,
-      ];
-      const freelist = (database: Database.Database) =>
-        database.pragma("freelist_count", { simple: true });
-      const olderFreelist = freelist(older);
-      expect(freelist(fresh)).toBeGreaterThan(1_024);
-
-      await runPluginDatabaseMaintenanceSweep({
-        logger: testLogger,
-        plugins: service,
-      });
-
-      expect(fresh.pragma("auto_vacuum", { simple: true })).toBe(2);
-      expect(freelist(fresh)).toBe(0);
-      expect(older.pragma("auto_vacuum", { simple: true })).toBe(0);
-      expect(freelist(older)).toBe(olderFreelist);
     });
 
     it("rejects a changed migration statement at an applied index", async () => {
