@@ -189,16 +189,16 @@ describe("runDatabaseMaintenanceSweep", () => {
       });
       try {
         migrate(db);
-        expect(getDatabaseAutoVacuumMode(db)).toBe("none");
+        expect(getDatabaseAutoVacuumMode(db.$client)).toBe("none");
         markDatabaseBusy(db);
         buildFreelist(db);
-        const before = getDatabaseFreelistStats(db);
+        const before = getDatabaseFreelistStats(db.$client);
         slowQueryLogger.clear();
 
         await runDatabaseMaintenanceSweep({ db, logger: testLogger });
 
-        expect(getDatabaseAutoVacuumMode(db)).toBe("none");
-        expect(getDatabaseFreelistStats(db).freelistCount).toBe(
+        expect(getDatabaseAutoVacuumMode(db.$client)).toBe("none");
+        expect(getDatabaseFreelistStats(db.$client).freelistCount).toBe(
           before.freelistCount,
         );
         expect(
@@ -214,7 +214,7 @@ describe("runDatabaseMaintenanceSweep", () => {
 
   it("vacuums in chunks and yields to the event loop between them", async () => {
     const { db } = setupBusyDatabaseWithFreelist();
-    const before = getDatabaseFreelistStats(db);
+    const before = getDatabaseFreelistStats(db.$client);
     expect(before.freelistCount).toBeGreaterThan(512);
     let yielded = false;
     setImmediate(() => {
@@ -224,7 +224,7 @@ describe("runDatabaseMaintenanceSweep", () => {
     await runDatabaseMaintenanceSweep({ db, logger: testLogger });
 
     expect(yielded).toBe(true);
-    expect(getDatabaseFreelistStats(db).freelistCount).toBeLessThan(
+    expect(getDatabaseFreelistStats(db.$client).freelistCount).toBeLessThan(
       before.freelistCount - 256,
     );
   });
@@ -239,7 +239,7 @@ describe("runDatabaseMaintenanceSweep", () => {
         readerDb.exec("BEGIN");
         readerTransactionOpen = true;
         readerDb.prepare("SELECT COUNT(*) FROM scratch_blobs").get();
-        const before = getDatabaseFreelistStats(db);
+        const before = getDatabaseFreelistStats(db.$client);
         const startedAt = performance.now();
 
         await runDatabaseMaintenanceSweep({ db, logger: testLogger });
@@ -248,7 +248,7 @@ describe("runDatabaseMaintenanceSweep", () => {
         expect(elapsedMs).toBeLessThan(
           DATABASE_MAINTENANCE_BUSY_TIMEOUT_MS + SQLITE_BUSY_HEADROOM_MS,
         );
-        expect(getDatabaseFreelistStats(db).freelistCount).toBeLessThan(
+        expect(getDatabaseFreelistStats(db.$client).freelistCount).toBeLessThan(
           before.freelistCount,
         );
       } finally {
@@ -272,7 +272,7 @@ describe("runDatabaseMaintenanceSweep", () => {
       try {
         writerDb.exec("BEGIN IMMEDIATE");
         writerTransactionOpen = true;
-        const before = getDatabaseFreelistStats(db);
+        const before = getDatabaseFreelistStats(db.$client);
         const { logger, warnMessages } = createCapturingServerLogger();
         const startedAt = performance.now();
 
@@ -283,7 +283,7 @@ describe("runDatabaseMaintenanceSweep", () => {
           DATABASE_MAINTENANCE_BUSY_TIMEOUT_MS + SQLITE_BUSY_HEADROOM_MS,
         );
         expect(warnMessages).toHaveLength(1);
-        expect(getDatabaseFreelistStats(db).freelistCount).toBe(
+        expect(getDatabaseFreelistStats(db.$client).freelistCount).toBe(
           before.freelistCount,
         );
       } finally {
