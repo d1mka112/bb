@@ -480,6 +480,9 @@ export const REALTIME_ENVIRONMENT_CHANGE_REGISTRY = {
   "git-refs-changed": {
     dirty: [],
   },
+  "git-branches-changed": {
+    dirty: [],
+  },
   "thread-storage-changed": {
     dirty: [dirtyThreadStorageQueriesForEnvironment],
   },

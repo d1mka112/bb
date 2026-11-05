@@ -467,6 +467,7 @@ describe("GitHub PR Status server", () => {
     [["metadata-changed"], "branch"],
     [["git-refs-changed", "metadata-changed"], "branch"],
     [["git-refs-changed"], "invalidate"],
+    [["git-branches-changed"], null],
     [["work-status-changed"], null],
     [["thread-storage-changed"], null],
   ] as const)(

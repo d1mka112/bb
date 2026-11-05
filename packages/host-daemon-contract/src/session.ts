@@ -387,6 +387,7 @@ const hostDaemonEnvironmentChangeSchema = z
   .extract([
     "work-status-changed",
     "git-refs-changed",
+    "git-branches-changed",
     "thread-storage-changed",
   ]);
 export type HostDaemonEnvironmentChange = z.infer<

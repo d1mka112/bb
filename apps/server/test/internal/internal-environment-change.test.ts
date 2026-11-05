@@ -134,6 +134,7 @@ describe("internal environment change websocket hints", () => {
     "work-status-changed",
     "thread-storage-changed",
     "git-refs-changed",
+    "git-branches-changed",
   ] as const)(
     "notifies clients for %s hints without mutating rows",
     async (change) => {
